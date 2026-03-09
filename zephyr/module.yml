@@ -1,0 +1,4 @@
+name: yandy-gimbal
+build:
+  cmake: .
+  kconfig: zephyr/Kconfig

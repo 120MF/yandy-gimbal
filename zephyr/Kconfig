@@ -1,0 +1,13 @@
+config YANDY_GIMBAL
+    bool "yandy-gimbal node for OneFramework"
+    depends on ONE_FRAMEWORK
+    help
+      Enable yandy-gimbal node.
+
+if YANDY_GIMBAL
+
+module = YANDY_GIMBAL
+module-str = YANDY_GIMBAL
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # YANDY_GIMBAL

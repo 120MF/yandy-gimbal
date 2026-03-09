@@ -1,0 +1,5 @@
+if(CONFIG_YANDY_GIMBAL)
+    zephyr_library()
+    zephyr_library_sources(src/YandyGimbalNode.cpp)
+    zephyr_include_directories(include)
+endif()

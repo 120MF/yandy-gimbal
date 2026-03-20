@@ -2,12 +2,9 @@
 #define YANDYGIMBALDATA_HPP_
 
 struct YandyGimbalData {
-    int value;
-
-    // Optional: implement format() for debugging
-    // std::string format() const {
-    //     return std::format("value: {}", value);
-    // }
+    float gimbal_z;      // Motor position in radians
+    float gimbal_yaw;    // Yaw angle (from servo1) in radians
+    float gimbal_pitch;  // Pitch angle (from servo2) in radians
 };
 
 #endif // YANDYGIMBALDATA_HPP_

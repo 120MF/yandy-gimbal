@@ -196,7 +196,9 @@ void YandyGimbalNode::run() {
         // Publish gimbal state
         auto status = m_lift_motor.getStatusPlain();
         topic_yandy_gimbal.write({
-            static_cast<int>(status.reduced_angle_rad * 100)  // Position in centi-radians
+            status.reduced_angle_rad,                           // gimbal_z: motor position
+            m_servo1_pos * 3.14159f,                            // gimbal_yaw: servo1 (0-1) -> (0-π)
+            m_servo2_pos * (3.14159f / 4.0f)                    // gimbal_pitch: servo2 (0-1) -> (0-π/4, i.e., 0-45°)
         });
     }
 }

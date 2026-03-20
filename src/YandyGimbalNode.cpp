@@ -19,7 +19,7 @@ static constexpr led_color c_normal = COLOR_HEX("#00ff88");
 static constexpr led_color c_warning = COLOR_HEX("#ff6600");
 static constexpr led_color c_calibrating = COLOR_HEX("#ffff00");
 
-void YandyGimbalNode::setServoPosition(const pwm_dt_spec* servo, float normalized_pos) {
+void YandyGimbalNode::setServoPosition(const pwm_dt_spec* servo, float normalized_pos, uint32_t min_pulse_us, uint32_t max_pulse_us) {
     if (servo == nullptr || servo->dev == nullptr) {
         return;
     }
@@ -27,10 +27,8 @@ void YandyGimbalNode::setServoPosition(const pwm_dt_spec* servo, float normalize
     // Clamp to 0-1 range
     normalized_pos = std::clamp(normalized_pos, 0.0f, 1.0f);
     
-    // JX Servo PDI-6225MG: 500-2500us pulse for 300 degrees
-    static constexpr ServoConfig cfg{};
     const auto pulse_us = static_cast<uint32_t>(
-        cfg.min_pulse_us + normalized_pos * (cfg.max_pulse_us - cfg.min_pulse_us)
+        min_pulse_us + normalized_pos * (max_pulse_us - min_pulse_us)
     );
     
     // PWM period is 20ms (50Hz), convert pulse to nanoseconds
@@ -115,15 +113,21 @@ bool YandyGimbalNode::init() {
     }
     
     // Initialize servos to center position
+    // Servo 1: JX PDI-6225MG (300 deg range), limit to 0-180 deg
+    // 0-300 deg -> 500-2500 us
+    // 0-180 deg -> 500-1700 us
     if (config.servo1 != nullptr && device_is_ready(config.servo1->dev)) {
-        setServoPosition(config.servo1, 0.5f);
+        setServoPosition(config.servo1, 0.5f, 500, 1700);
         LOG_INF("Servo 1 initialized");
     } else {
         LOG_WRN("Servo 1 not ready");
     }
     
+    // Servo 2: SPT17HV-180 (180 deg range), limit to 0-45 deg
+    // 0-180 deg -> 500-2500 us
+    // 0-45 deg -> 500-1000 us
     if (config.servo2 != nullptr && device_is_ready(config.servo2->dev)) {
-        setServoPosition(config.servo2, 0.5f);
+        setServoPosition(config.servo2, 0.5f, 500, 1000);
         LOG_INF("Servo 2 initialized");
     } else {
         LOG_WRN("Servo 2 not ready");
@@ -165,12 +169,12 @@ void YandyGimbalNode::run() {
         // Left stick X -> Servo 1 (map from 364-1684 to 0-1)
         float servo1_input = vt_stick_percent(data.left_stick_x);
         m_servo1_pos = (servo1_input + 1.0f) / 2.0f;  // Convert -1..1 to 0..1
-        setServoPosition(config.servo1, m_servo1_pos);
+        setServoPosition(config.servo1, m_servo1_pos, 500, 1700);
         
         // Left stick Y -> Servo 2
         float servo2_input = vt_stick_percent(data.left_stick_y);
         m_servo2_pos = (servo2_input + 1.0f) / 2.0f;
-        setServoPosition(config.servo2, m_servo2_pos);
+        setServoPosition(config.servo2, m_servo2_pos, 500, 1000);
         
         // Wheel -> Motor position (accumulate)
         // Use wheel as velocity control for height

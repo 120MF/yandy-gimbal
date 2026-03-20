@@ -85,7 +85,7 @@ private:
     static constexpr int STALL_DETECTION_COUNT = 10;  // consecutive frames
     
     // Helper functions
-    static void setServoPosition(const pwm_dt_spec* servo, float normalized_pos);
+    static void setServoPosition(const pwm_dt_spec* servo, float normalized_pos, uint32_t min_pulse_us, uint32_t max_pulse_us);
     bool calibrateZero();
 };
 

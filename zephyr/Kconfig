@@ -1,5 +1,8 @@
 config YANDY_GIMBAL
     bool "yandy-gimbal node for OneFramework"
+    select ONE_MOTOR
+    select NOTIFY_HUB
+    select VT_HUB
     depends on ONE_FRAMEWORK
     help
       Enable yandy-gimbal node.

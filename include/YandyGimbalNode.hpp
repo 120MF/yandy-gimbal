@@ -35,21 +35,25 @@ static constexpr PidParams<> g_gimbal_ang_params{
 };
 
 // JX Servo PDI-6225MG: 300 degree range, 500-2500us pulse width
-struct ServoConfig {
-    uint32_t min_pulse_us = 500;   // 0 degrees
-    uint32_t max_pulse_us = 2500;  // 300 degrees
+struct ServoConfig
+{
+    uint32_t min_pulse_us = 500; // 0 degrees
+    uint32_t max_pulse_us = 2500; // 300 degrees
     float angle_range_deg = 300.0f;
 };
 
-class YandyGimbalNode : public Node<YandyGimbalNode> {
+class YandyGimbalNode : public Node<YandyGimbalNode>
+{
 public:
-    struct Meta {
+    struct Meta
+    {
         static constexpr size_t stack_size = 4096;
         static constexpr int priority = 2;
-        static constexpr const char *name = "yandy_gimbal";
+        static constexpr const char* name = "yandy_gimbal";
     };
 
-    struct Config {
+    struct Config
+    {
         const device* can_dev;
         const pwm_dt_spec* servo1;
         const pwm_dt_spec* servo2;
@@ -59,33 +63,37 @@ public:
 
     bool init();
     void run();
-    void cleanup() {}
+
+    void cleanup()
+    {
+    }
 
 private:
     // Motor
     CanDriver m_driver;
     M2006 m_lift_motor;
-    
+
     // Motor state
     float m_motor_target_pos = 0.0f;
     bool m_is_zeroed = false;
-    
+
     // Servo state (0.0 - 1.0 normalized)
-    float m_servo1_pos = 0.5f;
-    float m_servo2_pos = 0.5f;
-    
+    float m_servo1_pos = 0.8f;
+    float m_servo2_pos = 0.1f;
+
     // LED guard
     NotifyGuard<LEDStatus> m_led_guard{"gimbal"};
-    
+
     // Constants
-    static constexpr float MAX_MOTOR_POS = 30.0f;  // rad
-    static constexpr float ZERO_CALIBRATION_TARGET = -2.0f;  // rad
-    static constexpr float STALL_CURRENT_THRESHOLD = 3000.0f;  // mA
-    static constexpr float STALL_POSITION_TOLERANCE = 0.05f;  // rad
-    static constexpr int STALL_DETECTION_COUNT = 10;  // consecutive frames
-    
+    static constexpr float MAX_MOTOR_POS = 30.0f; // rad
+    static constexpr float ZERO_CALIBRATION_TARGET = -2.0f; // rad
+    static constexpr float STALL_CURRENT_THRESHOLD = 3000.0f; // mA
+    static constexpr float STALL_POSITION_TOLERANCE = 0.05f; // rad
+    static constexpr int STALL_DETECTION_COUNT = 10; // consecutive frames
+
     // Helper functions
-    static void setServoPosition(const pwm_dt_spec* servo, float normalized_pos, uint32_t min_pulse_us, uint32_t max_pulse_us);
+    static void setServoPosition(const pwm_dt_spec* servo, float normalized_pos, uint32_t min_pulse_us,
+                                 uint32_t max_pulse_us);
     bool calibrateZero();
 };
 

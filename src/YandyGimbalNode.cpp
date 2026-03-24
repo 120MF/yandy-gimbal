@@ -42,13 +42,15 @@ void YandyGimbalNode::setServoPosition(const pwm_dt_spec* servo, float normalize
 bool YandyGimbalNode::calibrateZero()
 {
     LOG_INF("Starting zero calibration...");
-    m_led_guard.set({c_calibrating, LEDMode::Blink, 1, 100});
+    // m_led_guard.set({c_calibrating, LEDMode::Blink, 1, 100});
 
     // Set a small negative target to push motor to mechanical limit
-    m_lift_motor.setPosRef(ZERO_CALIBRATION_TARGET);
+    m_lift_motor.setAngRef(ZERO_CALIBRATION_TARGET);
 
     float last_position = 0.0f;
     int stall_count = 0;
+    bool success = false;
+
 
     // Wait for motor to reach mechanical limit (stall detection)
     for (int i = 0; i < 500; ++i)
@@ -70,14 +72,15 @@ bool YandyGimbalNode::calibrateZero()
                 LOG_INF("Stall detected at position %.2f, current %.0f mA",
                         static_cast<double>(current_pos), static_cast<double>(current_mA));
 
-                // Set current position as zero by recording offset
                 // The motor's internal offset will be updated on next enable
-                m_motor_target_pos = 0.0f;
-                m_lift_motor.setPosRef(0.0f);
+                m_motor_offset = last_position;
+                m_lift_motor.setPosRef(-(m_motor_target_pos - m_motor_offset));
                 m_is_zeroed = true;
 
                 LOG_INF("Zero calibration complete");
-                return true;
+
+                success = true;
+                goto end;
             }
         }
         else
@@ -87,7 +90,23 @@ bool YandyGimbalNode::calibrateZero()
 
         last_position = current_pos;
     }
+end:
+    (void)m_lift_motor
+         .disable()
+         .and_then([this]
+          {
+              return m_lift_motor.setParam({1, PosAngMode{g_gimbal_pos_params, g_gimbal_ang_params}});
+          })
+         .and_then([this] { return m_lift_motor.enable(); })
+         .or_else([](auto&& err)
+          {
+              LOG_ERR("%s", err.message);
+          });
 
+    if (success)
+    {
+        return true;
+    }
     LOG_WRN("Zero calibration timeout");
     return false;
 }
@@ -112,15 +131,13 @@ bool YandyGimbalNode::init()
     // Initialize M2006 motor with PosAngMode
     if (const auto result = m_lift_motor.init(m_driver,
                                               one::motor::dji::Param{
-                                                  5, PosAngMode{g_gimbal_pos_params, g_gimbal_ang_params}
+                                                  1, one::motor::dji::AngMode{g_gimbal_calib_params}
                                               });
         !result)
     {
         LOG_ERR("Failed to init lift motor");
         return false;
     }
-
-    m_lift_motor.setPosRef(0.0f);
 
     // Enable motor
     if (const auto result = m_lift_motor.enable(); !result)
@@ -135,7 +152,7 @@ bool YandyGimbalNode::init()
     // 0-180 deg -> 500-1700 us
     if (config.servo1 != nullptr && device_is_ready(config.servo1->dev))
     {
-        setServoPosition(config.servo1, 0.9f, 500, 2500);
+        setServoPosition(config.servo1, 0.5f, 1400, 2500);
         LOG_INF("Servo 1 initialized");
     }
     else
@@ -148,7 +165,7 @@ bool YandyGimbalNode::init()
     // 0-45 deg -> 500-1000 us
     if (config.servo2 != nullptr && device_is_ready(config.servo2->dev))
     {
-        setServoPosition(config.servo2, 0.2f, 600, 1000);
+        setServoPosition(config.servo2, 0.5f, 500, 2500);
         LOG_INF("Servo 2 initialized");
     }
     else
@@ -169,7 +186,7 @@ void YandyGimbalNode::run()
     {
         LOG_WRN("Calibration failed, using current position as zero");
         m_is_zeroed = true;
-        m_motor_target_pos = 0.0f;
+        m_motor_offset = 0;
     }
 
     while (true)
@@ -178,31 +195,31 @@ void YandyGimbalNode::run()
 
         auto state = VtHub::get<VT03RemotePacket>();
 
-        // Check connection and switch state (3 = enabled)
-        if (!state || state.value().switch_state != 2)
+        // Check connection and switch state (1 = enabled)
+        if (!state || state.value().switch_state != 1)
         {
             // switch_state: 0=down, 1=mid, 2=up
-            m_led_guard.set({c_warning, LEDMode::Breathing, 1, 300});
+            // m_led_guard.set({c_warning, LEDMode::Breathing, 1, 300});
 
             // Hold current position when disabled
-            m_lift_motor.setPosRef(m_motor_target_pos);
+            m_lift_motor.setPosRef(-(m_motor_target_pos - m_motor_offset));
             k_sleep(K_MSEC(100));
             continue;
         }
 
-        m_led_guard.set({c_normal, LEDMode::Breathing, 1, 500});
+        // m_led_guard.set({c_normal, LEDMode::Breathing, 1, 500});
 
         auto data = state.value();
 
         // Left stick X -> Servo 1 (map from 364-1684 to 0-1)
         float servo1_input = vt_stick_percent(data.left_stick_x);
         m_servo1_pos = (servo1_input + 1.0f) / 2.0f; // Convert -1..1 to 0..1
-        setServoPosition(config.servo1, m_servo1_pos, 500, 1700);
+        setServoPosition(config.servo1, m_servo1_pos, 1400, 2500);
 
         // Left stick Y -> Servo 2
         float servo2_input = vt_stick_percent(data.left_stick_y);
         m_servo2_pos = (servo2_input + 1.0f) / 2.0f;
-        setServoPosition(config.servo2, m_servo2_pos, 500, 1000);
+        setServoPosition(config.servo2, m_servo2_pos, 500, 2500);
 
         // Wheel -> Motor position (accumulate)
         // Use wheel as velocity control for height
@@ -210,7 +227,7 @@ void YandyGimbalNode::run()
         float wheel_velocity = vt_stick_percent(data.wheel);
 
         // Deadzone handled by vt_stick_percent (implied linear mapping) but adding small threshold good practice
-        if (std::abs(wheel_velocity) < 0.1f) wheel_velocity = 0.0f;
+        if (std::abs(wheel_velocity) < 0.05f) wheel_velocity = 0.0f;
 
         // Accumulate position: velocity * scale
         // Scale factor: max speed ~2.0 rad/s * 0.01s loop time = 0.02
@@ -219,7 +236,7 @@ void YandyGimbalNode::run()
         // Clamp to valid range
         m_motor_target_pos = std::clamp(m_motor_target_pos, 0.0f, MAX_MOTOR_POS);
 
-        m_lift_motor.setPosRef(m_motor_target_pos);
+        m_lift_motor.setPosRef(-(m_motor_target_pos - m_motor_offset));
 
         // Publish gimbal state
         auto status = m_lift_motor.getStatusPlain();

@@ -72,7 +72,6 @@ bool YandyGimbalNode::calibrateZero()
                 LOG_INF("Stall detected at position %.2f, current %.0f mA",
                         static_cast<double>(current_pos), static_cast<double>(current_mA));
 
-                // The motor's internal offset will be updated on next enable
                 m_motor_offset = last_position;
                 m_lift_motor.setPosRef(-(m_motor_target_pos - m_motor_offset));
                 m_is_zeroed = true;
@@ -100,7 +99,7 @@ end:
          .and_then([this] { return m_lift_motor.enable(); })
          .or_else([](auto&& err)
           {
-              LOG_ERR("%s", err.message);
+              LOG_ERR("Set new motor param failed: %s", err.message);
           });
 
     if (success)
@@ -211,15 +210,15 @@ void YandyGimbalNode::run()
 
         auto data = state.value();
 
-        // Left stick X -> Servo 1 (map from 364-1684 to 0-1)
+        // Left stick X -> Servo 1
         float servo1_input = vt_stick_percent(data.left_stick_x);
-        m_servo1_pos = (servo1_input + 1.0f) / 2.0f; // Convert -1..1 to 0..1
+        m_servo1_pos += servo1_input / 20.0f;
         setServoPosition(config.servo1, m_servo1_pos, 1400, 2500);
 
         // Left stick Y -> Servo 2
         float servo2_input = vt_stick_percent(data.left_stick_y);
-        m_servo2_pos = (servo2_input + 1.0f) / 2.0f;
-        setServoPosition(config.servo2, m_servo2_pos, 500, 2500);
+        m_servo2_pos += servo2_input / 20.0f;
+        setServoPosition(config.servo2, m_servo2_pos, 1200, 1800);
 
         // Wheel -> Motor position (accumulate)
         // Use wheel as velocity control for height

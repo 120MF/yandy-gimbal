@@ -18,15 +18,15 @@ using one::can::CanDriver;
 // M2006 PosAngMode PID parameters
 static constexpr PidParams<> g_gimbal_pos_params{
     .Kp = 20,
-    .Ki = 0.03,
-    .Kd = 0.03,
+    .Ki = 0.00,
+    .Kd = 0.00,
     .MaxOutput = 14000,
     .Deadband = 0.005,
     .IntegralLimit = 1000,
 };
 
 static constexpr PidParams<> g_gimbal_ang_params{
-    .Kp = 20,
+    .Kp = 15,
     .Ki = 0.0,
     .Kd = 0.0,
     .MaxOutput = 16000,

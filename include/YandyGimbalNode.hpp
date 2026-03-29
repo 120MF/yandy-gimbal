@@ -85,7 +85,7 @@ private:
 
     // Servo state (0.0 - 1.0 normalized)
     float m_servo1_pos = 0.5f;
-    float m_servo2_pos = 0.5f;
+    float m_servo2_pos = 0.6f;
 
     // LED guard
     NotifyGuard<LEDStatus> m_led_guard{"gimbal"};

@@ -195,7 +195,7 @@ void YandyGimbalNode::run()
         auto state = VtHub::get<VT03RemotePacket>();
 
         // Check connection and switch state (1 = enabled)
-        if (!state || state.value().switch_state != 1)
+        if (!state || state.value().switch_state() != 1)
         {
             // switch_state: 0=down, 1=mid, 2=up
             // m_led_guard.set({c_warning, LEDMode::Breathing, 1, 300});
@@ -211,19 +211,19 @@ void YandyGimbalNode::run()
         auto data = state.value();
 
         // Left stick X -> Servo 1
-        float servo1_input = vt_stick_percent(data.left_stick_x);
-        m_servo1_pos += servo1_input / 20.0f;
+        float servo1_input = vt_stick_percent(data.left_stick_x());
+        m_servo1_pos -= servo1_input / 20.0f;
         setServoPosition(config.servo1, m_servo1_pos, 1400, 2500);
 
         // Left stick Y -> Servo 2
-        float servo2_input = vt_stick_percent(data.left_stick_y);
+        float servo2_input = vt_stick_percent(data.left_stick_y());
         m_servo2_pos += servo2_input / 20.0f;
         setServoPosition(config.servo2, m_servo2_pos, 1200, 1800);
 
         // Wheel -> Motor position (accumulate)
         // Use wheel as velocity control for height
         // value > center -> move up, value < center -> move down
-        float wheel_velocity = vt_stick_percent(data.wheel);
+        float wheel_velocity = vt_stick_percent(data.wheel());
 
         // Deadzone handled by vt_stick_percent (implied linear mapping) but adding small threshold good practice
         if (std::abs(wheel_velocity) < 0.05f) wheel_velocity = 0.0f;
@@ -240,9 +240,9 @@ void YandyGimbalNode::run()
         // Publish gimbal state
         auto status = m_lift_motor.getStatusPlain();
         topic_yandy_gimbal.write({
-            status.reduced_angle_rad, // gimbal_z: motor position
-            m_servo1_pos * 3.14159f, // gimbal_yaw: servo1 (0-1) -> (0-π)
-            m_servo2_pos * (3.14159f / 4.0f) // gimbal_pitch: servo2 (0-1) -> (0-π/4, i.e., 0-45°)
+            -status.reduced_angle_rad * 0.01125f, // gimbal_z: motor position
+            (m_servo1_pos - 0.5f) * 3.14159f, // gimbal_yaw: servo1 (0-1) -> (-2/pi~2/π)
+            (m_servo2_pos - 0.6f) * (3.14159f / 4.0f) // gimbal_pitch: servo2 (0-1) -> (0-π/4, i.e., -10-35°)
         });
     }
 }

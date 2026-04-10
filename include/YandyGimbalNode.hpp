@@ -91,7 +91,7 @@ private:
     NotifyGuard<LEDStatus> m_led_guard{"gimbal"};
 
     // Constants
-    static constexpr float MAX_MOTOR_POS = 15.0f; // rad
+    static constexpr float MAX_MOTOR_POS = 22.0f; // rad
     static constexpr float ZERO_CALIBRATION_TARGET = 15.0f; // rad / s
     static constexpr float STALL_CURRENT_THRESHOLD = 800.0f; // mA
     static constexpr float STALL_POSITION_TOLERANCE = 0.05f; // rad

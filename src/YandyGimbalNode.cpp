@@ -212,7 +212,7 @@ void YandyGimbalNode::run()
 
         // Left stick X -> Servo 1
         float servo1_input = vt_stick_percent(data.left_stick_x());
-        m_servo1_pos -= servo1_input / 20.0f;
+        m_servo1_pos -= servo1_input / 100.0f;
         setServoPosition(config.servo1, m_servo1_pos, 1400, 2500);
 
         // Left stick Y -> Servo 2
